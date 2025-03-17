@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>VisionAI Check</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+    #chart { font-size: 80px; margin: 50px; }
+    button { padding: 10px 20px; margin: 5px; }
+    #result { margin: 20px; font-size: 18px; }
+    #distance { width: 100px; }
+  </style>
+</head>
+<body>
+  <h1>VisionAI Check</h1>
+  <p>画面から<input id="distance" type="number" value="50" min="10" max="100">cm離れてください。</p>
+  <div id="chart">C</div>
+  <button onclick="checkVision('up')">上</button>
+  <button onclick="checkVision('down')">下</button>
+  <button onclick="checkVision('left')">左</button>
+  <button onclick="checkVision('right')">右</button>
+  <div id="result"></div>
+
+  <script>
+    const directions = ['up', 'down', 'left', 'right'];
+    let currentDir = 'up';
+    let score = 0;
+    let total = 0;
+
+    function nextChart() {
+      currentDir = directions[Math.floor(Math.random() * 4)];
+      document.getElementById('chart').style.transform = 
+        currentDir === 'up' ? 'rotate(0deg)' :
+        currentDir === 'down' ? 'rotate(180deg)' :
+        currentDir === 'left' ? 'rotate(90deg)' : 'rotate(-90deg)';
+    }
+
+    function checkVision(choice) {
+      total++;
+      if (choice === currentDir) score++;
+      if (total < 10) {
+        nextChart();
+      } else {
+        const distance = document.getElementById('distance').value;
+        const result = `検査終了！スコア: ${score}/10 (距離: ${distance}cm)`;
+        document.getElementById('result').innerText = result;
+        localStorage.setItem('lastScore', result);
+      }
+    }
+
+    const lastScore = localStorage.getItem('lastScore');
+    if (lastScore) document.getElementById('result').innerText = `前回のスコア: ${lastScore}`;
+    nextChart();
+  </script>
+</body>
+</html>

@@ -45,7 +45,6 @@
         let landoltSize = 150;
         let previousSize = landoltSize;
         let faceDetected = false;
-        let isFirstRender = true;
         let faceSize = 160; // デフォルト値
 
         const visionLevels = [
@@ -66,8 +65,11 @@
             const directions = ['up', 'down', 'left', 'right'];
             correctDirection = directions[Math.floor(Math.random() * 4)];
 
+            ctx.save(); // 描画状態保存
+            ctx.translate(x, y); // ランドルト環の中心座標に移動
+            ctx.rotate(0); // 回転をゼロに固定
             ctx.beginPath();
-            ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
+            ctx.arc(0, 0, size / 2, 0, 2 * Math.PI);
             ctx.lineWidth = gapSize;
             ctx.strokeStyle = '#00796b';
             ctx.stroke();
@@ -75,40 +77,26 @@
             ctx.beginPath();
             switch (correctDirection) {
                 case 'up':
-                    ctx.arc(x, y - size / 2, gapSize, 0, Math.PI * 2);
+                    ctx.arc(0, -size / 2, gapSize, 0, Math.PI * 2);
                     break;
                 case 'down':
-                    ctx.arc(x, y + size / 2, gapSize, 0, Math.PI * 2);
+                    ctx.arc(0, size / 2, gapSize, 0, Math.PI * 2);
                     break;
                 case 'left':
-                    ctx.arc(x - size / 2, y, gapSize, 0, Math.PI * 2);
+                    ctx.arc(-size / 2, 0, gapSize, 0, Math.PI * 2);
                     break;
                 case 'right':
-                    ctx.arc(x + size / 2, y, gapSize, 0, Math.PI * 2);
+                    ctx.arc(size / 2, 0, gapSize, 0, Math.PI * 2);
                     break;
             }
             ctx.fillStyle = '#f0f8ff';
             ctx.fill();
+            ctx.restore(); // 回転の解除
         }
 
         async function startWebcam() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             webcam.srcObject = stream;
-
-            function detectFace() {
-                faceDetected = true;
-                if (faceSize < 120) {
-                    distanceWarning.textContent = '顔が遠すぎます。近づいてください。';
-                } else if (faceSize > 200) {
-                    distanceWarning.textContent = '顔が近すぎます。離れてください。';
-                } else {
-                    distanceWarning.textContent = '';
-                }
-
-                drawLandoltC();
-                setTimeout(detectFace, 500); // 0.5秒ごとにチェック
-            }
-            detectFace();
         }
 
         function checkAnswer(direction) {

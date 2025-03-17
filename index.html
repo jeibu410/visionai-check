@@ -48,6 +48,10 @@
     button:hover {
       background-color: #00796b;
     }
+    button:disabled {
+      background-color: #b0bec5;
+      cursor: not-allowed;
+    }
     #result {
       margin: 30px;
       font-size: 1.3em;
@@ -68,10 +72,10 @@
   <p>「C」の開いている方向を答えてください。</p>
   <div id="chart">C</div>
   <div id="controls">
-    <button onclick="checkVision('up')">上</button>
-    <button onclick="checkVision('down')">下</button>
-    <button onclick="checkVision('left')">左</button>
-    <button onclick="checkVision('right')">右</button>
+    <button id="upBtn" onclick="checkVision('up')">上</button>
+    <button id="downBtn" onclick="checkVision('down')">下</button>
+    <button id="leftBtn" onclick="checkVision('left')">左</button>
+    <button id="rightBtn" onclick="checkVision('right')">右</button>
   </div>
   <button id="reset" onclick="resetTest()">再検査</button>
   <div id="result"></div>
@@ -83,7 +87,15 @@
     let total = 0;
     const maxQuestions = 10;
 
-    // 視力計算関数（0.1〜1.5、0.1刻み）
+    // ボタンの有効/無効化
+    function toggleButtons(enabled) {
+      document.getElementById('upBtn').disabled = !enabled;
+      document.getElementById('downBtn').disabled = !enabled;
+      document.getElementById('leftBtn').disabled = !enabled;
+      document.getElementById('rightBtn').disabled = !enabled;
+    }
+
+    // 視力計算関数
     function calculateVision(score, distance) {
       const baseDistance = 50; // 基準距離50cm
       const scoreRatio = score / maxQuestions; // 正解率 (0〜1)
@@ -109,16 +121,20 @@
         currentDir === 'left' ? 'rotate(90deg)' : 'rotate(-90deg)';
     }
 
-    // 回答チェック
+    // 回答チェック（修正版）
     function checkVision(choice) {
-      if (total < maxQuestions) { // 10問未満の場合のみ処理
-        total++;
-        if (choice === currentDir) score++; // 正解ならスコア加算
-        if (total < maxQuestions) {
-          nextChart();
-        } else {
-          endTest();
-        }
+      if (total >= maxQuestions) return; // 10問終了後は何もしない
+
+      if (choice === currentDir) {
+        score++; // 正解ならスコア加算
+      }
+      total++; // 問題数をカウント
+
+      if (total < maxQuestions) {
+        nextChart(); // 次の問題へ
+      } else {
+        toggleButtons(false); // 10問終了でボタン無効化
+        endTest(); // 結果表示
       }
     }
 
@@ -143,6 +159,7 @@
       document.getElementById('result').innerHTML = '';
       document.getElementById('controls').style.display = 'block';
       document.getElementById('reset').style.display = 'none';
+      toggleButtons(true); // ボタンを有効化
       const distance = parseInt(document.getElementById('distance').value);
       adjustChartSize(distance);
       nextChart();
@@ -154,6 +171,7 @@
     const initialDistance = parseInt(document.getElementById('distance').value);
     adjustChartSize(initialDistance);
     nextChart();
+    toggleButtons(true); // 初期状態でボタン有効
 
     // 距離変更時
     document.getElementById('distance').addEventListener('change', function() {

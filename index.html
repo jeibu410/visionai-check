@@ -8,8 +8,8 @@
         body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; }
         canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 320px; height: auto; }
         #webcam { width: 140px; height: 105px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
-        #controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
-        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 30%; min-width: 100px; }
+        #controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
+        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 100%; }
         #score, #remaining, #distanceWarning, #visionResult { margin-top: 10px; }
         #distanceWarning { color: red; font-weight: bold; }
     </style>
@@ -23,7 +23,7 @@
         <button onclick="checkAnswer('down')">↓ 下</button>
         <button onclick="checkAnswer('left')">← 左</button>
         <button onclick="checkAnswer('right')">→ 右</button>
-        <button onclick="checkAnswer('unknown')">？ わからない</button>
+        <button onclick="checkAnswer('unknown')">わからない</button>
     </div>
     <p id="remaining">残り問題数: 15</p>
     <p id="score">スコア: 0</p>
@@ -100,10 +100,12 @@
         }
 
         function checkAnswer(direction) {
+            if (remainingQuestions <= 0) return;
+
             if (direction === correctDirection) {
                 score++;
                 previousSize = landoltSize;
-                landoltSize = Math.max(10, landoltSize - 30); // 最小サイズをさらに小さく
+                landoltSize = Math.max(10, landoltSize - 30); 
             } else {
                 landoltSize = previousSize;
             }
@@ -115,7 +117,7 @@
                 drawLandoltC();
             } else {
                 const visionScore = getVisionResult(score);
-                visionResultDisplay.textContent = `視力検査結果: ${visionScore}`;
+                alert(`視力検査結果: ${visionScore}`);
             }
         }
 

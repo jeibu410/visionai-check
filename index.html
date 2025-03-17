@@ -115,6 +115,27 @@
             ctx.restore();
         }
 
+        function checkAnswer(direction) {
+            if (!faceDetected || remainingQuestions <= 0) return;
+            if (direction === correctDirection) {
+                score++;
+                landoltSize *= 0.9; 
+            } else {
+                landoltSize = previousSize; 
+            }
+
+            previousSize = landoltSize;
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingQuestions--;
+            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+            if (remainingQuestions === 0) {
+                visionResultDisplay.textContent = `視力結果: ${getVisionResult(score)}`;
+                alert(`検査終了。視力結果: ${getVisionResult(score)}`);
+            } else {
+                drawLandoltC();
+            }
+        }
+
         function restartTest() {
             score = 0;
             remainingQuestions = 20;
@@ -122,6 +143,7 @@
             previousSize = landoltSize;
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+            visionResultDisplay.textContent = '';
             drawLandoltC();
         }
 

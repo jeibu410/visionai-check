@@ -6,10 +6,10 @@
     <title>VisionLink - 視力検査</title>
     <style>
         body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; }
-        canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 320px; height: auto; }
-        #webcam { width: 320px; height: 240px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
-        #controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
-        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 100%; }
+        canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 280px; height: auto; }
+        #webcam { width: 280px; height: 210px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
+        #controls { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
+        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; }
         #score, #remaining, #distanceWarning, #visionResult { margin-top: 10px; }
         #distanceWarning { color: red; font-weight: bold; }
     </style>
@@ -17,7 +17,7 @@
 <body>
     <h1>VisionLink - 視力検査</h1>
     <video id="webcam" autoplay></video>
-    <canvas id="visionCanvas" width="320" height="320"></canvas>
+    <canvas id="visionCanvas" width="280" height="280"></canvas>
     <div id="controls">
         <button onclick="checkAnswer('up')">↑ 上</button>
         <button onclick="checkAnswer('down')">↓ 下</button>
@@ -42,7 +42,7 @@
         let correctDirection = '';
         let score = 0;
         let remainingQuestions = 20;
-        let landoltSize = 150;
+        let landoltSize = 100;
         let previousSize = landoltSize;
         let faceDetected = true; 
         let faceSize = 160; 
@@ -119,7 +119,7 @@
             if (!faceDetected || remainingQuestions <= 0) return;
             if (direction === correctDirection) {
                 score++;
-                landoltSize *= 0.9; 
+                landoltSize *= 0.85; 
             } else {
                 landoltSize = previousSize; 
             }
@@ -139,7 +139,7 @@
         function restartTest() {
             score = 0;
             remainingQuestions = 20;
-            landoltSize = 150;
+            landoltSize = 100;
             previousSize = landoltSize;
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;

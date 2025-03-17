@@ -46,7 +46,7 @@
         let previousSize = landoltSize;
         let faceDetected = false;
         let isFirstRender = true;
-        let faceSize = 0;
+        let faceSize = 160; // デフォルト値
 
         const visionLevels = [
             1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
@@ -58,9 +58,6 @@
         }
 
         function drawLandoltC() {
-            if (!faceDetected || !isFirstRender) return;
-            isFirstRender = false;
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const size = landoltSize;
             const gapSize = size / 6;
@@ -98,30 +95,42 @@
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             webcam.srcObject = stream;
 
-            const track = stream.getVideoTracks()[0];
-            const imageCapture = new ImageCapture(track);
-
-            async function detectFace() {
-                try {
-                    const bitmap = await imageCapture.grabFrame();
-                    const faceDetectedInFrame = true;
-                    faceDetected = faceDetectedInFrame;
-                    faceSize = 160; // 仮の値として 160px で設定
-                    if (faceSize < 120) {
-                        distanceWarning.textContent = '顔が遠すぎます。近づいてください。';
-                    } else if (faceSize > 200) {
-                        distanceWarning.textContent = '顔が近すぎます。離れてください。';
-                    } else {
-                        distanceWarning.textContent = '';
-                    }
-
-                    if (isFirstRender) drawLandoltC();
-                } catch (err) {
-                    console.error('顔検出エラー:', err);
+            function detectFace() {
+                faceDetected = true;
+                if (faceSize < 120) {
+                    distanceWarning.textContent = '顔が遠すぎます。近づいてください。';
+                } else if (faceSize > 200) {
+                    distanceWarning.textContent = '顔が近すぎます。離れてください。';
+                } else {
+                    distanceWarning.textContent = '';
                 }
+
+                drawLandoltC();
                 setTimeout(detectFace, 500); // 0.5秒ごとにチェック
             }
             detectFace();
+        }
+
+        function checkAnswer(direction) {
+            if (!faceDetected || faceSize < 120 || faceSize > 200) return;
+
+            if (direction === correctDirection) {
+                score++;
+                landoltSize = Math.max(landoltSize * 0.8, 20);
+            } else {
+                landoltSize = previousSize;
+            }
+
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingQuestions--;
+            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+
+            if (remainingQuestions === 0) {
+                visionResultDisplay.textContent = `あなたの視力は ${getVisionResult(score)} です`;
+            } else {
+                previousSize = landoltSize;
+                drawLandoltC();
+            }
         }
 
         startWebcam();

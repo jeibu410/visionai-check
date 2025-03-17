@@ -7,7 +7,7 @@
     <style>
         body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; }
         canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 320px; height: auto; }
-        #webcam { width: 140px; height: 105px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
+        #webcam { width: 320px; height: 240px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
         #controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
         button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 100%; }
         #score, #remaining, #distanceWarning, #visionResult { margin-top: 10px; }
@@ -44,8 +44,8 @@
         let remainingQuestions = 20;
         let landoltSize = 150;
         let previousSize = landoltSize;
-        let faceDetected = false;
-        let faceSize = 160; // デフォルト値
+        let faceDetected = true; 
+        let faceSize = 160; 
 
         const visionLevels = [
             1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
@@ -54,6 +54,28 @@
 
         function getVisionResult(score) {
             return visionLevels[Math.max(0, 20 - score)];
+        }
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                webcam.srcObject = stream;
+            } catch (err) {
+                distanceWarning.textContent = 'カメラの起動に失敗しました';
+            }
+        }
+
+        function checkDistance() {
+            if (faceSize < 100) {
+                distanceWarning.textContent = '顔が遠すぎます';
+                faceDetected = false;
+            } else if (faceSize > 200) {
+                distanceWarning.textContent = '顔が近すぎます';
+                faceDetected = false;
+            } else {
+                distanceWarning.textContent = '';
+                faceDetected = true;
+            }
         }
 
         function drawLandoltC() {
@@ -65,9 +87,8 @@
             const directions = ['up', 'down', 'left', 'right'];
             correctDirection = directions[Math.floor(Math.random() * 4)];
 
-            ctx.save(); // 描画状態保存
-            ctx.translate(x, y); // ランドルト環の中心座標に移動
-            ctx.rotate(0); // 回転をゼロに固定
+            ctx.save();
+            ctx.translate(x, y);
             ctx.beginPath();
             ctx.arc(0, 0, size / 2, 0, 2 * Math.PI);
             ctx.lineWidth = gapSize;
@@ -91,38 +112,22 @@
             }
             ctx.fillStyle = '#f0f8ff';
             ctx.fill();
-            ctx.restore(); // 回転の解除
+            ctx.restore();
         }
 
-        async function startWebcam() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            webcam.srcObject = stream;
-        }
-
-        function checkAnswer(direction) {
-            if (!faceDetected || faceSize < 120 || faceSize > 200) return;
-
-            if (direction === correctDirection) {
-                score++;
-                landoltSize = Math.max(landoltSize * 0.8, 20);
-            } else {
-                landoltSize = previousSize;
-            }
-
+        function restartTest() {
+            score = 0;
+            remainingQuestions = 20;
+            landoltSize = 150;
+            previousSize = landoltSize;
             scoreDisplay.textContent = `スコア: ${score}`;
-            remainingQuestions--;
             remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
-
-            if (remainingQuestions === 0) {
-                visionResultDisplay.textContent = `あなたの視力は ${getVisionResult(score)} です`;
-            } else {
-                previousSize = landoltSize;
-                drawLandoltC();
-            }
+            drawLandoltC();
         }
 
-        startWebcam();
         drawLandoltC();
+        initCamera();
+        setInterval(checkDistance, 1000);
     </script>
 </body>
 </html>

@@ -23,7 +23,6 @@
         <button onclick="checkAnswer('down')">↓ 下</button>
         <button onclick="checkAnswer('left')">← 左</button>
         <button onclick="checkAnswer('right')">→ 右</button>
-        <button onclick="checkAnswer('unknown')">わからない</button>
     </div>
     <p id="remaining">残り問題数: 15</p>
     <p id="score">スコア: 0</p>
@@ -105,7 +104,7 @@
             if (direction === correctDirection) {
                 score++;
                 previousSize = landoltSize;
-                landoltSize = Math.max(10, landoltSize - 30); 
+                landoltSize = Math.max(5, landoltSize - 30); 
             } else {
                 landoltSize = previousSize;
             }

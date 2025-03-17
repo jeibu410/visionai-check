@@ -24,28 +24,28 @@
         <button onclick="checkAnswer('left')">← 左</button>
         <button onclick="checkAnswer('right')">→ 右</button>
     </div>
+    <p id="distanceWarning"></p>
     <p id="remaining">残り問題数: 20</p>
     <p id="score">スコア: 0</p>
     <p id="visionResult"></p>
-    <p id="distanceWarning"></p>
     <button onclick="restartTest()">再検査</button>
 
     <script>
-        const canvas = document.getElementById('visionCanvas');
-        const ctx = canvas.getContext('2d');
+        const distanceWarning = document.getElementById('distanceWarning');
+        const webcam = document.getElementById('webcam');
         const scoreDisplay = document.getElementById('score');
         const remainingDisplay = document.getElementById('remaining');
         const visionResultDisplay = document.getElementById('visionResult');
-        const distanceWarning = document.getElementById('distanceWarning');
-        const webcam = document.getElementById('webcam');
+        const canvas = document.getElementById('visionCanvas');
+        const ctx = canvas.getContext('2d');
 
-        let correctDirection = '';
         let score = 0;
         let remainingQuestions = 20;
         let landoltSize = 100;
         let previousSize = landoltSize;
-        let faceDetected = true; 
-        let faceSize = 160; 
+        let correctDirection;
+        let faceDetected = true;
+        let faceSize = 160;
 
         const visionLevels = [
             1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
@@ -61,7 +61,7 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 webcam.srcObject = stream;
             } catch (err) {
-                distanceWarning.textContent = 'カメラの起動に失敗しました';
+                alert('カメラの起動に失敗しました');
             }
         }
 
@@ -116,21 +116,21 @@
         }
 
         function checkAnswer(direction) {
-            if (!faceDetected || remainingQuestions <= 0) return;
+            if (!faceDetected) return;
             if (direction === correctDirection) {
                 score++;
-                landoltSize *= 0.85; 
+                landoltSize = Math.max(landoltSize - 10, 10);
             } else {
-                landoltSize = previousSize; 
+                landoltSize = previousSize;
             }
-
             previousSize = landoltSize;
-            scoreDisplay.textContent = `スコア: ${score}`;
             remainingQuestions--;
-            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
-            if (remainingQuestions === 0) {
-                visionResultDisplay.textContent = `視力結果: ${getVisionResult(score)}`;
-                alert(`検査終了。視力結果: ${getVisionResult(score)}`);
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingDisplay.textContent = `残り問題数: ${Math.max(remainingQuestions, 0)}`;
+
+            if (remainingQuestions <= 0) {
+                const result = getVisionResult(score);
+                alert(`検査結果: あなたの視力は ${result} です`);
             } else {
                 drawLandoltC();
             }

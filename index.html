@@ -5,17 +5,17 @@
     <title>VisionLink - 視力検査</title>
     <style>
         body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; }
-        canvas { border: 2px solid #00796b; margin: 20px auto; display: block; }
-        #controls { margin-top: 20px; }
-        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin: 5px; }
-        #result, #score, #remaining, #distanceWarning { margin-top: 10px; }
+        canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 100%; max-width: 300px; height: auto; }
+        #controls { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        button { background-color: #00796b; color: #fff; border: none; padding: 15px 30px; cursor: pointer; border-radius: 5px; font-size: 18px; width: 100%; }
+        #score, #remaining, #distanceWarning { margin-top: 10px; }
         #distanceWarning { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>VisionLink - 視力検査</h1>
     <video id="webcam" width="300" height="200" autoplay></video>
-    <canvas id="visionCanvas" width="300" height="300"></canvas>
+    <canvas id="visionCanvas"></canvas>
     <div id="controls">
         <button onclick="checkAnswer('up')">↑ 上</button>
         <button onclick="checkAnswer('down')">↓ 下</button>
@@ -25,14 +25,12 @@
     </div>
     <p id="remaining">残り問題数: 20</p>
     <p id="score">スコア: 0</p>
-    <p id="result"></p>
     <p id="distanceWarning"></p>
     <button onclick="restartTest()">再検査</button>
 
     <script>
         const canvas = document.getElementById('visionCanvas');
         const ctx = canvas.getContext('2d');
-        const result = document.getElementById('result');
         const scoreDisplay = document.getElementById('score');
         const remainingDisplay = document.getElementById('remaining');
         const distanceWarning = document.getElementById('distanceWarning');
@@ -42,22 +40,9 @@
         let score = 0;
         let remainingQuestions = 20;
 
-        const visionMapping = [
-            { threshold: 18, score: '1.5' },
-            { threshold: 15, score: '1.2' },
-            { threshold: 12, score: '1.0' },
-            { threshold: 8, score: '0.7' },
-            { threshold: 5, score: '0.5' },
-            { threshold: 0, score: '0.3以下' }
-        ];
-
-        function getVisionScore() {
-            return visionMapping.find(v => score >= v.threshold).score;
-        }
-
         function drawLandoltC() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const size = Math.floor(Math.random() * 80) + 50; 
+            const size = Math.min(canvas.width, canvas.height) * 0.4;
             const gapSize = size / 6;
             const x = canvas.width / 2;
             const y = canvas.height / 2;
@@ -89,37 +74,9 @@
             ctx.fill();
         }
 
-        function checkAnswer(selectedDirection) {
-            if (remainingQuestions > 0) {
-                if (selectedDirection === correctDirection) {
-                    score++;
-                    result.textContent = '正解！';
-                    result.style.color = 'green';
-                } else {
-                    result.textContent = '不正解。もう一度試してください。';
-                    result.style.color = 'red';
-                }
-                remainingQuestions--;
-                updateDisplay();
-
-                if (remainingQuestions === 0) {
-                    result.textContent = `検査終了！最終視力スコアは ${getVisionScore()} です。`;
-                } else {
-                    setTimeout(drawLandoltC, 1000); 
-                }
-            }
-        }
-
-        function updateDisplay() {
-            scoreDisplay.textContent = `スコア: ${score}`;
-            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
-        }
-
         function restartTest() {
             score = 0;
             remainingQuestions = 20;
-            result.textContent = '';
-            updateDisplay();
             drawLandoltC();
         }
 

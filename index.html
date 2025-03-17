@@ -24,7 +24,7 @@
         <button onclick="checkAnswer('left')">← 左</button>
         <button onclick="checkAnswer('right')">→ 右</button>
     </div>
-    <p id="remaining">残り問題数: 15</p>
+    <p id="remaining">残り問題数: 20</p>
     <p id="score">スコア: 0</p>
     <p id="visionResult"></p>
     <p id="distanceWarning"></p>
@@ -41,30 +41,26 @@
 
         let correctDirection = '';
         let score = 0;
-        let remainingQuestions = 15;
-        let landoltSize = 200;
-        let previousSize = landoltSize; // 不正解時に使用するサイズ保存
+        let remainingQuestions = 20;
+        let landoltSize = 150;
+        let previousSize = landoltSize;
+        let faceDetected = false;
+        let isFirstRender = true;
+        let faceSize = 0;
 
         const visionLevels = [
-            { score: 15, vision: '1.5以上' },
-            { score: 13, vision: '1.0' },
-            { score: 10, vision: '0.7' },
-            { score: 7, vision: '0.5' },
-            { score: 4, vision: '0.3' },
-            { score: 1, vision: '0.1' },
-            { score: 0, vision: '0.05以下' }
+            1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
+            0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.01
         ];
 
         function getVisionResult(score) {
-            for (const level of visionLevels) {
-                if (score >= level.score) {
-                    return level.vision;
-                }
-            }
-            return '0.05以下';
+            return visionLevels[Math.max(0, 20 - score)];
         }
 
         function drawLandoltC() {
+            if (!faceDetected || !isFirstRender) return;
+            isFirstRender = false;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const size = landoltSize;
             const gapSize = size / 6;
@@ -98,40 +94,34 @@
             ctx.fill();
         }
 
-        function checkAnswer(direction) {
-            if (remainingQuestions <= 0) return;
-
-            if (direction === correctDirection) {
-                score++;
-                previousSize = landoltSize;
-                landoltSize = Math.max(5, landoltSize - 30); 
-            } else {
-                landoltSize = previousSize;
-            }
-            remainingQuestions--;
-            scoreDisplay.textContent = `スコア: ${score}`;
-            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
-
-            if (remainingQuestions > 0) {
-                drawLandoltC();
-            } else {
-                const visionScore = getVisionResult(score);
-                alert(`視力検査結果: ${visionScore}`);
-            }
-        }
-
-        function restartTest() {
-            score = 0;
-            remainingQuestions = 15;
-            landoltSize = 200;
-            previousSize = landoltSize;
-            visionResultDisplay.textContent = '';
-            drawLandoltC();
-        }
-
         async function startWebcam() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             webcam.srcObject = stream;
+
+            const track = stream.getVideoTracks()[0];
+            const imageCapture = new ImageCapture(track);
+
+            async function detectFace() {
+                try {
+                    const bitmap = await imageCapture.grabFrame();
+                    const faceDetectedInFrame = true;
+                    faceDetected = faceDetectedInFrame;
+                    faceSize = 160; // 仮の値として 160px で設定
+                    if (faceSize < 120) {
+                        distanceWarning.textContent = '顔が遠すぎます。近づいてください。';
+                    } else if (faceSize > 200) {
+                        distanceWarning.textContent = '顔が近すぎます。離れてください。';
+                    } else {
+                        distanceWarning.textContent = '';
+                    }
+
+                    if (isFirstRender) drawLandoltC();
+                } catch (err) {
+                    console.error('顔検出エラー:', err);
+                }
+                setTimeout(detectFace, 500); // 0.5秒ごとにチェック
+            }
+            detectFace();
         }
 
         startWebcam();

@@ -93,6 +93,7 @@
         const astigmatismResultDisplay = document.getElementById('astigmatismResult');
         const distanceWarning = document.getElementById('distanceWarning');
         const modeInstruction = document.getElementById('modeInstruction');
+        const distanceInstruction = document.getElementById('distanceInstruction');
         const webcam = document.getElementById('webcam');
 
         // ボタンの取得
@@ -104,13 +105,14 @@
         let correctDirection = '';
         let score = 0;
         let remainingQuestions = 20;
-        let landoltSize = 100; // 初期サイズ
+        let landoltSize = 100;
         let previousSize = landoltSize;
         let faceDetected = false;
         let astigmatismResponses = [];
         let screenCalibrationFactor = 1;
         let estimatedDistance = 0;
-        const MAX_SIZE = 140; // キャンバス(280x280)に収まる最大サイズ
+        let lastVisionScore = null; // 視力検査の最新スコアを保存
+        const MAX_SIZE = 140;
 
         // 視力レベルの定数（スコア0で0.01、スコア20で1.5）
         const VISION_LEVELS = [
@@ -144,21 +146,35 @@
             detectFace();
         }
 
-        // 顔検出と距離チェック（25cm基準）
+        // 顔検出と距離チェック（モードに応じた距離設定）
         async function detectFace() {
             const detection = await faceapi.detectSingleFace(webcam, new faceapi.TinyFaceDetectorOptions());
             if (detection) {
                 const faceSize = detection.box.width;
-                estimatedDistance = Math.round(5000 / faceSize); // 25cmで調整
-                if (estimatedDistance < 20) {
-                    distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
-                    faceDetected = false;
-                } else if (estimatedDistance > 30) {
-                    distanceWarning.textContent = `顔が遠すぎます（推定距離: ${estimatedDistance}cm）`;
-                    faceDetected = false;
-                } else {
-                    distanceWarning.textContent = `距離: ${estimatedDistance}cm（適切）`;
-                    faceDetected = true;
+                estimatedDistance = Math.round(5000 / faceSize); // 25cm基準
+                if (mode === 'vision') {
+                    if (estimatedDistance < 20) {
+                        distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
+                        faceDetected = false;
+                    } else if (estimatedDistance > 30) {
+                        distanceWarning.textContent = `顔が遠すぎます（推定距離: ${estimatedDistance}cm）`;
+                        faceDetected = false;
+                    } else {
+                        distanceWarning.textContent = `距離: ${estimatedDistance}cm（適切）`;
+                        faceDetected = true;
+                    }
+                } else if (mode === 'astigmatism') {
+                    estimatedDistance = Math.round(7000 / faceSize); // 35cm基準
+                    if (estimatedDistance < 30) {
+                        distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
+                        faceDetected = false;
+                    } else if (estimatedDistance > 40) {
+                        distanceWarning.textContent = `顔が遠すぎます（推定距離: ${estimatedDistance}cm）`;
+                        faceDetected = false;
+                    } else {
+                        distanceWarning.textContent = `距離: ${estimatedDistance}cm（適切）`;
+                        faceDetected = true;
+                    }
                 }
             } else {
                 distanceWarning.textContent = '顔が検出できません';
@@ -177,7 +193,7 @@
         // Landolt Cの描画（視力検査用）
         function drawLandoltC() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const size = Math.min(landoltSize * screenCalibrationFactor, MAX_SIZE); // 最大サイズ制限
+            const size = Math.min(landoltSize * screenCalibrationFactor, MAX_SIZE);
             const gapSize = size / 6;
             const x = canvas.width / 2;
             const y = canvas.height / 2;
@@ -205,12 +221,19 @@
             modeInstruction.textContent = 'ランドルト環の切れ目が向いている方向を選んでください';
         }
 
-        // 放射線パターン（乱視検査用）- 一番上が0
+        // 放射線パターン（乱視検査用）- 視力に応じたサイズ調整
         function drawAstigmatismChart() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            const radius = Math.min(80 * screenCalibrationFactor, MAX_SIZE / 2); // サイズを80に縮小、最大制限
+            let baseRadius = 60; // 基本半径
+            if (lastVisionScore !== null) {
+                const vision = getVisionResult(lastVisionScore);
+                // 視力が低いほど放射線を大きく（0.01で最大2倍、1.5で1倍）
+                const scaleFactor = Math.max(1, 2 - (vision / 1.5));
+                baseRadius *= scaleFactor;
+            }
+            const radius = Math.min(baseRadius * screenCalibrationFactor, MAX_SIZE / 2);
             const numLines = 12;
 
             ctx.save();
@@ -222,19 +245,15 @@
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(xEnd, yEnd);
-                ctx.lineWidth = 3 * screenCalibrationFactor;
+                ctx.lineWidth = 2 * screenCalibrationFactor;
                 ctx.strokeStyle = '#00796b';
                 ctx.stroke();
 
-                ctx.font = `${12 * screenCalibrationFactor}px Arial`; // フォントサイズを縮小
+                ctx.font = `${10 * screenCalibrationFactor}px Arial`;
                 ctx.fillStyle = '#00796b';
-                const textX = xEnd * 0.95;
-                const textY = yEnd * 0.95;
-                if (Math.abs(textX) < canvas.width / 2 - 20 && Math.abs(textY) < canvas.height / 2 - 20) {
-                    ctx.fillText(i, textX, textY);
-                } else {
-                    ctx.fillText(i, xEnd * 0.85, yEnd * 0.85);
-                }
+                const textX = xEnd * 1.1;
+                const textY = yEnd * 1.1;
+                ctx.fillText(i, textX, textY);
             }
             ctx.restore();
             modeInstruction.textContent = 'ぼやけて見える線の番号（0-11）をボタンで選んでください';
@@ -245,9 +264,11 @@
             if (mode === 'vision') {
                 visionButtons.forEach(btn => btn.classList.remove('hidden'));
                 astigmatismButtons.forEach(btn => btn.classList.add('hidden'));
+                distanceInstruction.textContent = 'お使いのデバイスから約25cm離れてください（カメラで距離を確認します）';
             } else {
                 visionButtons.forEach(btn => btn.classList.add('hidden'));
                 astigmatismButtons.forEach(btn => btn.classList.remove('hidden'));
+                distanceInstruction.textContent = 'お使いのデバイスから約35cm離れてください（カメラで距離を確認します）';
             }
         }
 
@@ -272,7 +293,7 @@
             if (mode === 'vision') {
                 if (input === correctDirection) {
                     score++;
-                    landoltSize *= 0.85; // 正解時のみ縮小
+                    landoltSize *= 0.85;
                 }
                 scoreDisplay.textContent = `スコア: ${score}`;
                 remainingQuestions--;
@@ -280,6 +301,7 @@
 
                 if (remainingQuestions === 0) {
                     const result = getVisionResult(score);
+                    lastVisionScore = score; // スコアを保存
                     visionResultDisplay.textContent = `視力結果: ${result}`;
                     alert(`検査終了。視力結果: ${result}`);
                 } else {
@@ -320,7 +342,7 @@
         function restartTest() {
             score = 0;
             remainingQuestions = mode === 'vision' ? 20 : 10;
-            landoltSize = 100; // 初期サイズをリセット
+            landoltSize = 100;
             previousSize = landoltSize;
             astigmatismResponses = [];
             scoreDisplay.textContent = `スコア: ${score}`;

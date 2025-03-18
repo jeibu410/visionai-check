@@ -57,10 +57,6 @@
         <button onclick="toggleMode('astigmatism')">乱視検査モード</button>
     </div>
     <div id="controls" role="group" aria-label="方向選択ボタン">
-        <button id="btn-up" class="vision-btn" onclick="checkAnswer('up')" accesskey="u" aria-label="上">↑ 上</button>
-        <button id="btn-down" class="vision-btn" onclick="checkAnswer('down')" accesskey="d" aria-label="下">↓ 下</button>
-        <button id="btn-left" class="vision-btn" onclick="checkAnswer('left')" accesskey="l" aria-label="左">← 左</button>
-        <button id="btn-right" class="vision-btn" onclick="checkAnswer('right')" accesskey="r" aria-label="右">→ 右</button>
         <button id="btn-0" class="astigmatism-btn hidden" onclick="checkAnswer('0')" aria-label="0時">0</button>
         <button id="btn-1" class="astigmatism-btn hidden" onclick="checkAnswer('1')" aria-label="1時">1</button>
         <button id="btn-2" class="astigmatism-btn hidden" onclick="checkAnswer('2')" aria-label="2時">2</button>
@@ -97,7 +93,6 @@
         const webcam = document.getElementById('webcam');
 
         // ボタンの取得
-        const visionButtons = document.querySelectorAll('.vision-btn');
         const astigmatismButtons = document.querySelectorAll('.astigmatism-btn');
 
         // 状態管理
@@ -106,12 +101,11 @@
         let score = 0;
         let remainingQuestions = 20;
         let landoltSize = 100;
-        let previousSize = landoltSize;
         let faceDetected = false;
         let astigmatismResponses = [];
         let screenCalibrationFactor = 1;
         let estimatedDistance = 0;
-        let lastVisionScore = null; // 視力検査の最新スコアを保存
+        let lastVisionScore = null;
         const MAX_SIZE = 140;
 
         // 視力レベルの定数（スコア0で0.01、スコア20で1.5）
@@ -146,13 +140,13 @@
             detectFace();
         }
 
-        // 顔検出と距離チェック（モードに応じた距離設定）
+        // 顔検出と距離チェック
         async function detectFace() {
             const detection = await faceapi.detectSingleFace(webcam, new faceapi.TinyFaceDetectorOptions());
             if (detection) {
                 const faceSize = detection.box.width;
-                estimatedDistance = Math.round(5000 / faceSize); // 25cm基準
                 if (mode === 'vision') {
+                    estimatedDistance = Math.round(5000 / faceSize);
                     if (estimatedDistance < 20) {
                         distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
                         faceDetected = false;
@@ -164,7 +158,7 @@
                         faceDetected = true;
                     }
                 } else if (mode === 'astigmatism') {
-                    estimatedDistance = Math.round(7000 / faceSize); // 35cm基準
+                    estimatedDistance = Math.round(7000 / faceSize);
                     if (estimatedDistance < 30) {
                         distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
                         faceDetected = false;
@@ -190,7 +184,7 @@
             screenCalibrationFactor = Math.min(referenceWidth / screenWidth, 3);
         }
 
-        // Landolt Cの描画（視力検査用）
+        // Landolt Cの描画
         function drawLandoltC() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const size = Math.min(landoltSize * screenCalibrationFactor, MAX_SIZE);
@@ -218,18 +212,17 @@
             ctx.fillStyle = '#f0f8ff';
             ctx.fill();
             ctx.restore();
-            modeInstruction.textContent = 'ランドルト環の切れ目が向いている方向を選んでください';
+            modeInstruction.textContent = 'ランドルト環の切れ目がある方向をタップまたはクリックしてください';
         }
 
-        // 放射線パターン（乱視検査用）- 視力に応じたサイズ調整
+        // 放射線パターン（乱視検査用）
         function drawAstigmatismChart() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            let baseRadius = 60; // 基本半径
+            let baseRadius = 60;
             if (lastVisionScore !== null) {
                 const vision = getVisionResult(lastVisionScore);
-                // 視力が低いほど放射線を大きく（0.01で最大2倍、1.5で1倍）
                 const scaleFactor = Math.max(1, 2 - (vision / 1.5));
                 baseRadius *= scaleFactor;
             }
@@ -262,11 +255,9 @@
         // ボタンの表示切り替え
         function updateButtonVisibility() {
             if (mode === 'vision') {
-                visionButtons.forEach(btn => btn.classList.remove('hidden'));
                 astigmatismButtons.forEach(btn => btn.classList.add('hidden'));
                 distanceInstruction.textContent = 'お使いのデバイスから約25cm離れてください（カメラで距離を確認します）';
             } else {
-                visionButtons.forEach(btn => btn.classList.add('hidden'));
                 astigmatismButtons.forEach(btn => btn.classList.remove('hidden'));
                 distanceInstruction.textContent = 'お使いのデバイスから約35cm離れてください（カメラで距離を確認します）';
             }
@@ -286,28 +277,28 @@
             }
         }
 
-        // 回答チェック
+        // タップ/クリック位置の角度ベース判定（キャンバス座標系対応）
+        function checkVisionAnswer(x, y) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const dx = x - centerX;
+            const dy = centerY - y; // Y軸を反転（キャンバス座標系に合わせる）
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            const normalizedAngle = (angle + 360) % 360;
+
+            // 角度範囲を調整（90度幅で判定）
+            if (normalizedAngle >= 0 && normalizedAngle < 45 || normalizedAngle >= 315) return correctDirection === 'right';
+            if (normalizedAngle >= 45 && normalizedAngle < 135) return correctDirection === 'up';
+            if (normalizedAngle >= 135 && normalizedAngle < 225) return correctDirection === 'left';
+            if (normalizedAngle >= 225 && normalizedAngle < 315) return correctDirection === 'down';
+            return false;
+        }
+
+        // 回答チェック（乱視のみ）
         function checkAnswer(input) {
             if (!faceDetected || remainingQuestions <= 0) return;
 
-            if (mode === 'vision') {
-                if (input === correctDirection) {
-                    score++;
-                    landoltSize *= 0.85;
-                }
-                scoreDisplay.textContent = `スコア: ${score}`;
-                remainingQuestions--;
-                remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
-
-                if (remainingQuestions === 0) {
-                    const result = getVisionResult(score);
-                    lastVisionScore = score; // スコアを保存
-                    visionResultDisplay.textContent = `視力結果: ${result}`;
-                    alert(`検査終了。視力結果: ${result}`);
-                } else {
-                    drawLandoltC();
-                }
-            } else if (mode === 'astigmatism') {
+            if (mode === 'astigmatism') {
                 const angle = parseInt(input) * 30;
                 astigmatismResponses.push({ direction: input, angle });
                 remainingQuestions--;
@@ -320,6 +311,60 @@
                 }
             }
         }
+
+        // キャンバスのクリックイベント
+        canvas.addEventListener('click', (event) => {
+            if (mode !== 'vision' || !faceDetected || remainingQuestions <= 0) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            if (checkVisionAnswer(x, y)) {
+                score++;
+                landoltSize *= 0.85;
+            }
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingQuestions--;
+            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+
+            if (remainingQuestions === 0) {
+                const result = getVisionResult(score);
+                lastVisionScore = score;
+                visionResultDisplay.textContent = `視力結果: ${result}`;
+                alert(`検査終了。視力結果: ${result}`);
+            } else {
+                drawLandoltC();
+            }
+        });
+
+        // タッチイベント（スマートフォン対応）
+        canvas.addEventListener('touchstart', (event) => {
+            if (mode !== 'vision' || !faceDetected || remainingQuestions <= 0) return;
+
+            event.preventDefault();
+            const touch = event.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            if (checkVisionAnswer(x, y)) {
+                score++;
+                landoltSize *= 0.85;
+            }
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingQuestions--;
+            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+
+            if (remainingQuestions === 0) {
+                const result = getVisionResult(score);
+                lastVisionScore = score;
+                visionResultDisplay.textContent = `視力結果: ${result}`;
+                alert(`検査終了。視力結果: ${result}`);
+            } else {
+                drawLandoltC();
+            }
+        });
 
         // 乱視の詳細分析
         function analyzeAstigmatism(responses) {
@@ -343,7 +388,6 @@
             score = 0;
             remainingQuestions = mode === 'vision' ? 20 : 10;
             landoltSize = 100;
-            previousSize = landoltSize;
             astigmatismResponses = [];
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
@@ -356,13 +400,9 @@
             }
         }
 
-        // キーボード操作対応
+        // キーボード操作対応（乱視のみ）
         document.addEventListener('keydown', (event) => {
             switch (event.key) {
-                case 'ArrowUp': case 'u': if (mode === 'vision') checkAnswer('up'); break;
-                case 'ArrowDown': case 'd': if (mode === 'vision') checkAnswer('down'); break;
-                case 'ArrowLeft': case 'l': if (mode === 'vision') checkAnswer('left'); break;
-                case 'ArrowRight': case 'r': if (mode === 'vision') checkAnswer('right'); break;
                 case '0': case '1': case '2': case '3': case '4': 
                 case '5': case '6': case '7': case '8': case '9': 
                 case '10': case '11': if (mode === 'astigmatism') checkAnswer(event.key); break;

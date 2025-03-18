@@ -111,15 +111,16 @@
         let screenCalibrationFactor = 1;
         let estimatedDistance = 0;
 
-        // 視力レベルの定数
+        // 視力レベルの定数（スコア0で0.01、スコア20で1.5）
         const VISION_LEVELS = [
-            1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
-            0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.01
+            0.01, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
+            0.55, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5
         ];
 
         // 視力結果の計算
         function getVisionResult(score) {
-            return VISION_LEVELS[Math.max(0, 20 - score)];
+            const index = Math.max(0, Math.min(20, score)); // スコアを0〜20に制限
+            return VISION_LEVELS[index];
         }
 
         // カメラの初期化
@@ -147,12 +148,11 @@
             const detection = await faceapi.detectSingleFace(webcam, new faceapi.TinyFaceDetectorOptions());
             if (detection) {
                 const faceSize = detection.box.width;
-                const adjustedFaceSize = faceSize * screenCalibrationFactor;
-                estimatedDistance = Math.round(3000 / adjustedFaceSize);
-                if (adjustedFaceSize < 70) {
+                estimatedDistance = Math.round(6000 / faceSize);
+                if (faceSize < 70) {
                     distanceWarning.textContent = `顔が遠すぎます（推定距離: ${estimatedDistance}cm）`;
                     faceDetected = false;
-                } else if (adjustedFaceSize > 200) {
+                } else if (faceSize > 200) {
                     distanceWarning.textContent = `顔が近すぎます（推定距離: ${estimatedDistance}cm）`;
                     faceDetected = false;
                 } else {
@@ -166,19 +166,17 @@
             setTimeout(detectFace, 1000);
         }
 
-        // 画面サイズと距離のキャリブレーション
+        // 画面サイズのキャリブレーション
         function calibrateScreen() {
             const screenWidth = window.innerWidth;
             const referenceWidth = 1440;
-            screenCalibrationFactor = referenceWidth / screenWidth;
-            landoltSize *= screenCalibrationFactor;
-            previousSize = landoltSize;
+            screenCalibrationFactor = Math.min(referenceWidth / screenWidth, 3);
         }
 
         // Landolt Cの描画（視力検査用）
         function drawLandoltC() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const size = landoltSize;
+            const size = landoltSize * screenCalibrationFactor;
             const gapSize = size / 6;
             const x = canvas.width / 2;
             const y = canvas.height / 2;
@@ -217,8 +215,7 @@
             ctx.save();
             ctx.translate(centerX, centerY);
             for (let i = 0; i < numLines; i++) {
-                // 0を12時方向にシフト（時計回りに90°回転を補正）
-                const angle = ((i - 3 + numLines) % numLines) / numLines * 2 * Math.PI; // -3で90°左にシフト
+                const angle = ((i - 3 + numLines) % numLines) / numLines * 2 * Math.PI;
                 const xEnd = radius * Math.cos(angle);
                 const yEnd = radius * Math.sin(angle);
                 ctx.beginPath();
@@ -228,7 +225,6 @@
                 ctx.strokeStyle = '#00796b';
                 ctx.stroke();
 
-                // 番号を描画
                 ctx.font = `${14 * screenCalibrationFactor}px Arial`;
                 ctx.fillStyle = '#00796b';
                 const textX = xEnd * 0.95;
@@ -275,10 +271,8 @@
             if (mode === 'vision') {
                 if (input === correctDirection) {
                     score++;
-                    landoltSize *= 0.85;
-                } else {
-                    landoltSize = previousSize;
                 }
+                landoltSize *= 0.85;
                 previousSize = landoltSize;
                 scoreDisplay.textContent = `スコア: ${score}`;
                 remainingQuestions--;
@@ -326,7 +320,7 @@
         function restartTest() {
             score = 0;
             remainingQuestions = mode === 'vision' ? 20 : 10;
-            landoltSize = 100 * screenCalibrationFactor;
+            landoltSize = 100;
             previousSize = landoltSize;
             astigmatismResponses = [];
             scoreDisplay.textContent = `スコア: ${score}`;

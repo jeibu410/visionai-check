@@ -215,6 +215,36 @@
             modeInstruction.textContent = 'ランドルト環の切れ目がある方向をタップまたはクリックしてください';
         }
 
+        // フィードバック表示関数（薄く調整）
+        function showFeedback(isCorrect) {
+            ctx.save();
+            if (isCorrect) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // 薄い緑
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // 薄い白
+                ctx.lineWidth = 5; // 細い線
+                ctx.beginPath();
+                ctx.moveTo(50, 150);
+                ctx.lineTo(100, 200);
+                ctx.lineTo(230, 50);
+                ctx.stroke(); // チェックマーク
+                if (navigator.vibrate) navigator.vibrate(200);
+            } else {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)'; // 薄い赤
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // 薄い白
+                ctx.lineWidth = 5; // 細い線
+                ctx.beginPath();
+                ctx.moveTo(50, 50);
+                ctx.lineTo(230, 230);
+                ctx.moveTo(230, 50);
+                ctx.lineTo(50, 230);
+                ctx.stroke(); // ×マーク
+            }
+            ctx.restore();
+            setTimeout(() => drawLandoltC(), 500); // 0.5秒後に次を表示
+        }
+
         // 放射線パターン（乱視検査用）
         function drawAstigmatismChart() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -277,16 +307,15 @@
             }
         }
 
-        // タップ/クリック位置の角度ベース判定（キャンバス座標系対応）
+        // タップ/クリック位置の角度ベース判定
         function checkVisionAnswer(x, y) {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const dx = x - centerX;
-            const dy = centerY - y; // Y軸を反転（キャンバス座標系に合わせる）
+            const dy = centerY - y; // Y軸を反転
             const angle = Math.atan2(dy, dx) * 180 / Math.PI;
             const normalizedAngle = (angle + 360) % 360;
 
-            // 角度範囲を調整（90度幅で判定）
             if (normalizedAngle >= 0 && normalizedAngle < 45 || normalizedAngle >= 315) return correctDirection === 'right';
             if (normalizedAngle >= 45 && normalizedAngle < 135) return correctDirection === 'up';
             if (normalizedAngle >= 135 && normalizedAngle < 225) return correctDirection === 'left';
@@ -320,7 +349,9 @@
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
 
-            if (checkVisionAnswer(x, y)) {
+            const isCorrect = checkVisionAnswer(x, y);
+            showFeedback(isCorrect); // フィードバック表示
+            if (isCorrect) {
                 score++;
                 landoltSize *= 0.85;
             }
@@ -333,8 +364,6 @@
                 lastVisionScore = score;
                 visionResultDisplay.textContent = `視力結果: ${result}`;
                 alert(`検査終了。視力結果: ${result}`);
-            } else {
-                drawLandoltC();
             }
         });
 
@@ -348,7 +377,9 @@
             const x = touch.clientX - rect.left;
             const y = touch.clientY - rect.top;
 
-            if (checkVisionAnswer(x, y)) {
+            const isCorrect = checkVisionAnswer(x, y);
+            showFeedback(isCorrect); // フィードバック表示
+            if (isCorrect) {
                 score++;
                 landoltSize *= 0.85;
             }
@@ -361,8 +392,6 @@
                 lastVisionScore = score;
                 visionResultDisplay.textContent = `視力結果: ${result}`;
                 alert(`検査終了。視力結果: ${result}`);
-            } else {
-                drawLandoltC();
             }
         });
 

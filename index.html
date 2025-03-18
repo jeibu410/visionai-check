@@ -5,79 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionLink - 視力検査</title>
     <style>
-        body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; }
+        body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
         canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 280px; height: auto; }
-        #webcam { width: 280px; height: 210px; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
-        #controls { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
-        button { background-color: #00796b; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; }
-        #score, #remaining, #distanceWarning, #visionResult { margin-top: 10px; }
+        #webcam { width: 90vw; max-width: 280px; height: auto; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
+        #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
+        button { 
+            background-color: #00796b; 
+            color: #fff; 
+            border: none; 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            font-size: clamp(14px, 4vw, 16px); 
+            transition: background-color 0.3s; 
+        }
+        button:hover { background-color: #004d40; }
+        button:focus { outline: 2px solid #004d40; }
+        #score, #remaining, #distanceWarning, #visionResult, #distanceInstruction { 
+            margin-top: 10px; 
+            font-size: clamp(14px, 4vw, 18px); 
+        }
+        #distanceInstruction { color: #00796b; font-weight: bold; }
         #distanceWarning { color: red; font-weight: bold; }
+        @media (max-width: 600px) {
+            #controls { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
     <h1>VisionLink - 視力検査</h1>
-    <video id="webcam" autoplay></video>
+    <video id="webcam" autoplay playsinline></video>
     <canvas id="visionCanvas" width="280" height="280"></canvas>
-    <div id="controls">
-        <button onclick="checkAnswer('up')">↑ 上</button>
-        <button onclick="checkAnswer('down')">↓ 下</button>
-        <button onclick="checkAnswer('left')">← 左</button>
-        <button onclick="checkAnswer('right')">→ 右</button>
+    <div id="controls" role="group" aria-label="方向選択ボタン">
+        <button onclick="checkAnswer('up')" accesskey="u" aria-label="上">↑ 上</button>
+        <button onclick="checkAnswer('down')" accesskey="d" aria-label="下">↓ 下</button>
+        <button onclick="checkAnswer('left')" accesskey="l" aria-label="左">← 左</button>
+        <button onclick="checkAnswer('right')" accesskey="r" aria-label="右">→ 右</button>
     </div>
-    <p id="distanceWarning"></p>
+    <p id="distanceInstruction">お使いのデバイスから30cm離れてください</p>
     <p id="remaining">残り問題数: 20</p>
     <p id="score">スコア: 0</p>
     <p id="visionResult"></p>
-    <button onclick="restartTest()">再検査</button>
+    <p id="distanceWarning"></p>
+    <button onclick="restartTest()" accesskey="t" aria-label="再検査">再検査</button>
 
+    <!-- face-api.js の読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
     <script>
-        const distanceWarning = document.getElementById('distanceWarning');
-        const webcam = document.getElementById('webcam');
+        // DOM要素の取得
+        const canvas = document.getElementById('visionCanvas');
+        const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('score');
         const remainingDisplay = document.getElementById('remaining');
         const visionResultDisplay = document.getElementById('visionResult');
-        const canvas = document.getElementById('visionCanvas');
-        const ctx = canvas.getContext('2d');
+        const distanceWarning = document.getElementById('distanceWarning');
+        const webcam = document.getElementById('webcam');
 
+        // 状態管理
+        let correctDirection = '';
         let score = 0;
         let remainingQuestions = 20;
         let landoltSize = 100;
         let previousSize = landoltSize;
-        let correctDirection;
-        let faceDetected = true;
-        let faceSize = 160;
+        let faceDetected = false;
 
-        const visionLevels = [
+        // 視力レベルの定数
+        const VISION_LEVELS = [
             1.5, 1.2, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5,
             0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.01
         ];
 
+        // 視力結果の計算
         function getVisionResult(score) {
-            return visionLevels[Math.max(0, 20 - score)];
+            return VISION_LEVELS[Math.max(0, 20 - score)];
         }
 
+        // カメラの初期化
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 webcam.srcObject = stream;
+                await webcam.play();
+                await loadFaceApi();
             } catch (err) {
-                alert('カメラの起動に失敗しました');
+                distanceWarning.textContent = 'カメラの起動に失敗しました';
+                console.error('カメラエラー:', err);
             }
         }
 
-        function checkDistance() {
-            if (faceSize < 100) {
-                distanceWarning.textContent = '顔が遠すぎます';
-                faceDetected = false;
-            } else if (faceSize > 200) {
-                distanceWarning.textContent = '顔が近すぎます';
-                faceDetected = false;
+        // face-api.js のモデル読み込み
+        async function loadFaceApi() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
+            detectFace();
+        }
+
+        // 顔検出と距離チェック
+        async function detectFace() {
+            const detection = await faceapi.detectSingleFace(webcam, new faceapi.TinyFaceDetectorOptions());
+            if (detection) {
+                const faceSize = detection.box.width;
+                if (faceSize < 100) {
+                    distanceWarning.textContent = '顔が遠すぎます';
+                    faceDetected = false;
+                } else if (faceSize > 200) {
+                    distanceWarning.textContent = '顔が近すぎます';
+                    faceDetected = false;
+                } else {
+                    distanceWarning.textContent = '';
+                    faceDetected = true;
+                }
             } else {
-                distanceWarning.textContent = '';
-                faceDetected = true;
+                distanceWarning.textContent = '顔が検出できません';
+                faceDetected = false;
             }
+            setTimeout(detectFace, 1000);
         }
 
+        // Landolt Cの描画
         function drawLandoltC() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const size = landoltSize;
@@ -97,45 +141,42 @@
 
             ctx.beginPath();
             switch (correctDirection) {
-                case 'up':
-                    ctx.arc(0, -size / 2, gapSize, 0, Math.PI * 2);
-                    break;
-                case 'down':
-                    ctx.arc(0, size / 2, gapSize, 0, Math.PI * 2);
-                    break;
-                case 'left':
-                    ctx.arc(-size / 2, 0, gapSize, 0, Math.PI * 2);
-                    break;
-                case 'right':
-                    ctx.arc(size / 2, 0, gapSize, 0, Math.PI * 2);
-                    break;
+                case 'up': ctx.arc(0, -size / 2, gapSize, 0, Math.PI * 2); break;
+                case 'down': ctx.arc(0, size / 2, gapSize, 0, Math.PI * 2); break;
+                case 'left': ctx.arc(-size / 2, 0, gapSize, 0, Math.PI * 2); break;
+                case 'right': ctx.arc(size / 2, 0, gapSize, 0, Math.PI * 2); break;
             }
             ctx.fillStyle = '#f0f8ff';
             ctx.fill();
             ctx.restore();
         }
 
+        // 回答チェック
         function checkAnswer(direction) {
-            if (!faceDetected) return;
+            if (!faceDetected || remainingQuestions <= 0) return;
+
             if (direction === correctDirection) {
                 score++;
-                landoltSize = Math.max(landoltSize - 10, 10);
+                landoltSize *= 0.85;
             } else {
                 landoltSize = previousSize;
             }
-            previousSize = landoltSize;
-            remainingQuestions--;
-            scoreDisplay.textContent = `スコア: ${score}`;
-            remainingDisplay.textContent = `残り問題数: ${Math.max(remainingQuestions, 0)}`;
 
-            if (remainingQuestions <= 0) {
+            previousSize = landoltSize;
+            scoreDisplay.textContent = `スコア: ${score}`;
+            remainingQuestions--;
+            remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
+
+            if (remainingQuestions === 0) {
                 const result = getVisionResult(score);
-                alert(`検査結果: あなたの視力は ${result} です`);
+                visionResultDisplay.textContent = `視力結果: ${result}`;
+                alert(`検査終了。視力結果: ${result}`);
             } else {
                 drawLandoltC();
             }
         }
 
+        // テストのリスタート
         function restartTest() {
             score = 0;
             remainingQuestions = 20;
@@ -147,9 +188,24 @@
             drawLandoltC();
         }
 
-        drawLandoltC();
-        initCamera();
-        setInterval(checkDistance, 1000);
+        // キーボード操作対応
+        document.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 'ArrowUp': case 'u': checkAnswer('up'); break;
+                case 'ArrowDown': case 'd': checkAnswer('down'); break;
+                case 'ArrowLeft': case 'l': checkAnswer('left'); break;
+                case 'ArrowRight': case 'r': checkAnswer('right'); break;
+                case 't': restartTest(); break;
+            }
+        });
+
+        // 初期化
+        function init() {
+            drawLandoltC();
+            initCamera();
+        }
+
+        init();
     </script>
 </body>
 </html>

@@ -7,7 +7,14 @@
     <style>
         body { text-align: center; background: #f0f8ff; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
         canvas { border: 2px solid #00796b; margin: 20px auto; display: block; width: 90vw; max-width: 280px; height: auto; }
-        #webcam { width: 90vw; max-width: 280px; height: auto; margin-top: 10px; border: 2px solid #00796b; border-radius: 8px; }
+        #webcam { 
+            width: 70vw; /* サイズを小さく */
+            max-width: 200px; /* 最大幅を縮小 */
+            height: auto; 
+            margin-top: 10px; 
+            border: 2px solid #00796b; 
+            border-radius: 8px; 
+        }
         #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
         button { 
             background-color: #00796b; 
@@ -26,7 +33,11 @@
             font-size: clamp(14px, 4vw, 18px); 
         }
         #distanceInstruction { color: #00796b; font-weight: bold; }
-        #distanceWarning { color: red; font-weight: bold; }
+        #distanceWarning { 
+            color: red; 
+            font-weight: bold; 
+            margin: 15px 0; /* WEBカメラとランドルト環の間に配置するためのマージン */
+        }
         @media (max-width: 600px) {
             #controls { flex-direction: column; }
         }
@@ -35,6 +46,7 @@
 <body>
     <h1>VisionLink - 視力検査</h1>
     <video id="webcam" autoplay playsinline></video>
+    <p id="distanceWarning"></p>
     <canvas id="visionCanvas" width="280" height="280"></canvas>
     <div id="controls" role="group" aria-label="方向選択ボタン">
         <button onclick="checkAnswer('up')" accesskey="u" aria-label="上">↑ 上</button>
@@ -46,7 +58,6 @@
     <p id="remaining">残り問題数: 20</p>
     <p id="score">スコア: 0</p>
     <p id="visionResult"></p>
-    <p id="distanceWarning"></p>
     <button onclick="restartTest()" accesskey="t" aria-label="再検査">再検査</button>
 
     <!-- face-api.js の読み込み -->

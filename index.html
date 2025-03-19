@@ -100,13 +100,16 @@
         let correctDirection = '';
         let score = 0;
         let remainingQuestions = 20;
-        let landoltSize = 100;
+        let landoltSize = 100; // 初期サイズ
+        let correctCount = 0; // 正解回数のカウンター
+        let sizeLevel = 0; // サイズ段階（0〜6）
+        const SIZE_STAGES = [100, 85, 70, 55, 30, 15, 5]; // サイズ段階の配列
         let faceDetected = false;
         let astigmatismResponses = [];
         let screenCalibrationFactor = 1;
         let estimatedDistance = 0;
         let lastVisionScore = null;
-        const MAX_SIZE = 140;
+        const MAX_SIZE = 120; // 最大サイズ
 
         // 視力レベルの定数（スコア0で0.01、スコア20で1.5）
         const VISION_LEVELS = [
@@ -215,14 +218,14 @@
             modeInstruction.textContent = 'ランドルト環の切れ目がある方向をタップまたはクリックしてください';
         }
 
-        // フィードバック表示関数（薄く調整）
+        // フィードバック表示関数
         function showFeedback(isCorrect) {
             ctx.save();
             if (isCorrect) {
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // 薄い緑
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // 薄い白
-                ctx.lineWidth = 5; // 細い線
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 5;
                 ctx.beginPath();
                 ctx.moveTo(50, 150);
                 ctx.lineTo(100, 200);
@@ -230,10 +233,10 @@
                 ctx.stroke(); // チェックマーク
                 if (navigator.vibrate) navigator.vibrate(200);
             } else {
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)'; // 薄い赤
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // 薄い白
-                ctx.lineWidth = 5; // 細い線
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 5;
                 ctx.beginPath();
                 ctx.moveTo(50, 50);
                 ctx.lineTo(230, 230);
@@ -242,7 +245,7 @@
                 ctx.stroke(); // ×マーク
             }
             ctx.restore();
-            setTimeout(() => drawLandoltC(), 500); // 0.5秒後に次を表示
+            setTimeout(() => drawLandoltC(), 500);
         }
 
         // 放射線パターン（乱視検査用）
@@ -312,7 +315,7 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const dx = x - centerX;
-            const dy = centerY - y; // Y軸を反転
+            const dy = centerY - y;
             const angle = Math.atan2(dy, dx) * 180 / Math.PI;
             const normalizedAngle = (angle + 360) % 360;
 
@@ -350,10 +353,17 @@
             const y = event.clientY - rect.top;
 
             const isCorrect = checkVisionAnswer(x, y);
-            showFeedback(isCorrect); // フィードバック表示
+            showFeedback(isCorrect);
             if (isCorrect) {
                 score++;
-                landoltSize *= 0.85;
+                correctCount++;
+                if (correctCount >= 3 && sizeLevel < SIZE_STAGES.length - 1) {
+                    sizeLevel++;
+                    landoltSize = SIZE_STAGES[sizeLevel];
+                    correctCount = 0; // サイズ変更後にリセット
+                }
+            } else {
+                correctCount = 0; // 不正解でリセット
             }
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingQuestions--;
@@ -378,10 +388,17 @@
             const y = touch.clientY - rect.top;
 
             const isCorrect = checkVisionAnswer(x, y);
-            showFeedback(isCorrect); // フィードバック表示
+            showFeedback(isCorrect);
             if (isCorrect) {
                 score++;
-                landoltSize *= 0.85;
+                correctCount++;
+                if (correctCount >= 3 && sizeLevel < SIZE_STAGES.length - 1) {
+                    sizeLevel++;
+                    landoltSize = SIZE_STAGES[sizeLevel];
+                    correctCount = 0; // サイズ変更後にリセット
+                }
+            } else {
+                correctCount = 0; // 不正解でリセット
             }
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingQuestions--;
@@ -417,6 +434,8 @@
             score = 0;
             remainingQuestions = mode === 'vision' ? 20 : 10;
             landoltSize = 100;
+            correctCount = 0;
+            sizeLevel = 0;
             astigmatismResponses = [];
             scoreDisplay.textContent = `スコア: ${score}`;
             remainingDisplay.textContent = `残り問題数: ${remainingQuestions}`;
